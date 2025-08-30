@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; img-src 'self' data:;">
+
+  <title>Calculate World</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:linear-gradient(135deg,#1e1e2f 0%,#2a2a4a 100%);height:100vh;display:flex;justify-content:center;align-items:center;overflow:hidden;touch-action:manipulation;}
+    .calculator-container {
+  width: 100%;
+  max-width: 420px;
+  height: 100vh;            /* 🔹 Full screen height */
+  margin: 0 auto;           /* center horizontally */
+  border-radius: 0;         /* optional: remove round corners if fullscreen */
+  box-shadow: none;         /* optional: remove shadow */
+  background: #222;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;  /* push display & buttons apart */
+}
+
+    .calculator-header{text-align:center;padding:10px 0;flex-shrink:0;}
+    .calculator-title{color:#e2e8f0;font-size:1.5rem;font-weight:400;}
+    .calculator-subtitle{color:#a0aec0;font-size:.8rem;}
+    .display {
+    font-size: 2rem;
+    padding: 15px;
+    text-align: right;
+    overflow-x: auto; /* allow long numbers to scroll */
+    word-wrap: break-word;
+}
+
+ /* Splash screen */
+    #splash-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #1e1e2f 0%, #2a2a4a 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      color: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      animation: fadeOut 1s ease 2.5s forwards; /* fade out after 2.5s */
+    }
+
+    .splash-title {
+  font-family: 'Poppins', sans-serif;   /* modern clean font */
+  font-size: 3rem;
+  font-weight: 700;
+  color: #00ffcc;                       /* neon aqua color */
+  text-shadow: 0 0 10px #00ffcc, 0 0 20px #0099ff, 0 0 40px #0066ff; /* glowing */
+  animation: glow 2s ease-in-out infinite alternate;
+}
+
+    #history-panel {
+  width: 250px;
+  background: #222;
+  color: white;
+  padding: 10px;
+  border-left: 2px solid #444;
+  display: none; /* hidden until HIS button clicked */
+}
+
+#history-list {
+  max-height: 300px;   /* limit height */
+  overflow-y: auto;    /* enable scroll */
+  padding-right: 5px;
+}
+
+#history-list div {
+  border-bottom: 1px solid #555;
+  padding: 5px 0;
+}
+
+    .previous-operand{color:#a0aec0;font-size:.9rem;margin-bottom:5px;word-break:break-all;}
+    .current-operand{color:#fff;font-size:2.2rem;font-weight:600;word-break:break-all;line-height:1.2;}
+    .buttons-grid{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 4 buttons per row */
+    gap: 8px;
+    padding: 10px;
+      .small-button {
+  font-size: 0.8rem;   /* smaller text */
+  padding: 8px 12px;   /* smaller button */
+  width: auto;         /* don’t stretch full grid width */
+        min-width: 50px;     /* keep a minimum touchable size */}
+}
+
+    .button{position:relative;border:none;border-radius:12px;padding:15px;font-size:1.2rem;font-weight:500;cursor:pointer;transition:transform .1s ease;display:flex;justify-content:center;align-items:center;touch-action:manipulation;min-height:48px;}
+    .button:active{
+    transform: scale(0.95);
+    background: #444;
+}
+    .button::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,.15);opacity:0;transition:opacity .2s ease;}
+    .button:active::before{opacity:1;}
+    .number{background:#4a5568;color:#e2e8f0;}
+    .operation{background:#805ad5;color:#fff;}
+    .function{background:#2f855a;color:#fff;}
+    .equals{background:#c53030;color:#fff;}
+    .clear{background:#d69e2e;color:#fff;}
+    .memory{background:#3182ce;color:#fff;}
+    .history{background:#0987a0;color:#fff;}
+    .span-2{grid-column:span 2;}
+    .scientific{display:none;}
+    .history-panel{display:none;background:#2d3748;border-radius:12px;padding:10px;margin-top:10px;max-height:150px;overflow-y:auto;color:#e2e8f0;font-size:.85rem;flex-shrink:0;}
+    .history-panel.show{display:block;}
+    .history-item{padding:5px 0;border-bottom:1px solid #4a5568;cursor:pointer;}
+    .history-item:active{background:rgba(255,255,255,.1);}
+    .calculator-footer{text-align:center;margin-top:10px;color:#a0aec0;font-size:.7rem;flex-shrink:0;}
+   @media (max-width: 480px) {
+  .display {
+    font-size: 1.5rem;
+    padding: 10px;
+  }
+
+  .button {
+    padding: 14px;
+    font-size: 1rem;
+  }
+
+  .current-operand {
+    font-size: 1.8rem;
+  }
+}
+   /* Landscape mode adjustments */
+@media (orientation: landscape) {
+  .calculator-container {
+    padding: 10px;  /* tighter padding */
+  }
+
+  .buttons-grid {
+    gap: 8px;       /* reduce spacing between buttons */
+  }
+
+  .button {
+    padding: 10px;  /* smaller buttons */
+    font-size: 1rem;
+  }
+}
+
+/* Button press animation */
+.button-press {
+  animation: buttonPress 0.1s ease;
+}
+
+@keyframes buttonPress {
+  0%   { transform: scale(1); }
+  50%  { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+/* Error text (like division by zero) */
+.error {
+  color: #f56565;
+}
+  /* Fade-out animation */
+    @keyframes fadeOut {
+      to {
+        opacity: 0;
+        visibility: hidden;
+      }
+    }
+
+    /*  splash screen Text zoom animation */
+    @keyframes zoomIn {
+      0% { transform: scale(0.5); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+     /* splash screen */
+    @keyframes glow {
+  from {
+    text-shadow: 0 0 5px #00ffcc, 0 0 10px #0099ff, 0 0 20px #0066ff;
+  }
+  to {
+    text-shadow: 0 0 20px #00ffcc, 0 0 40px #0099ff, 0 0 80px #0066ff;
+  }
+}
+
+  </style>
+</head>
+<body>
+  <div class="calculator-container">
+    <div class="calculator-header"></div>
+
+     <!-- Splash Screen -->
+  <div id="splash-screen">
+    <h1 class="splash-title">Calculate World</h1>
+  </div>
+
+   <!-- Calculator App (hidden initially) -->
+  <div id="calculator-app" style="display:none;">
+    <div class="calculator-container">
+      <!-- 🔹 your calculator display + buttons here -->
+    </div>
+  </div>
+
+    <div class="display">
+      <div class="previous-operand" id="previous-operand"></div>
+      <div class="current-operand" id="current-operand">0</div>
+    </div>
+
+    <div class="buttons-grid" id="buttons-grid">
+      <button class="button clear" onclick="calculator.clearAll()">AC</button>
+      <button class="button clear" onclick="calculator.clearEntry()">CE</button>
+
+      <button class="button history-btn" onclick="calculator.toggleHistory()">HIS</button>
+
+      <button class="button function" onclick="calculator.squareRoot()">√</button>
+      <button class="button function" onclick="calculator.square()">x²</button>
+      <button class="button function" onclick="calculator.reciprocal()">1/x</button>
+      
+      
+       <button class="button function small-button" onclick="calculator.toggleScientificMode()">Sci</button>
+      <button class="button function scientific" onclick="calculator.trigFunction('sin')">sin</button>
+      <button class="button function scientific" onclick="calculator.trigFunction('cos')">cos</button>
+      <button class="button function scientific" onclick="calculator.trigFunction('tan')">tan</button>
+      <button class="button function scientific" onclick="calculator.toggleAngleMode()">DEG</button>
+      
+      <button class="button operation" onclick="calculator.appendOperation('/')">÷</button>
+      <button class="button number" onclick="calculator.appendNumber(7)">7</button>
+      <button class="button number" onclick="calculator.appendNumber(8)">8</button>
+      <button class="button number" onclick="calculator.appendNumber(9)">9</button>
+      
+  <button class="button operation" onclick="calculator.appendOperation('*')">×</button>
+      <button class="button number" onclick="calculator.appendNumber(4)">4</button>
+      <button class="button number" onclick="calculator.appendNumber(5)">5</button>
+      <button class="button number" onclick="calculator.appendNumber(6)">6</button>
+    
+<button class="button operation" onclick="calculator.appendOperation('-')">−</button>
+      <button class="button number" onclick="calculator.appendNumber(1)">1</button>
+      <button class="button number" onclick="calculator.appendNumber(2)">2</button>
+      <button class="button number" onclick="calculator.appendNumber(3)">3</button>
+      
+<button class="button operation" onclick="calculator.appendOperation('+')">+</button>
+      <button class="button number" onclick="calculator.appendNumber(0)">0</button>
+      <button class="button function" onclick="calculator.appendDecimal()">.</button>
+      
+
+      <button class="button operation equals span-2" onclick="calculator.calculate()">=</button>
+    </div>
+
+     <!-- 🔹 History Panel -->
+    <div class="history-panel" id="history-panel" style="display:none;background:#2d3748;border-radius:12px;padding:10px;margin:10px;max-height:150px;overflow-y:auto;"></div>
+  </div>
+
+  <script>
+    
+
+    class Calculator {
+      constructor() {
+        this.currentOperand = '0';
+        this.previousOperand = '';
+        this.previousValue = null;           // ⬅️ numeric cache to compute with
+        this.operation = null;
+        this.shouldResetScreen = false;
+        this.memory = 0;
+        this.history = [];
+        this.isScientificMode = false;
+        this.angleMode = 'deg';
+
+        this.currentOperandElement = document.getElementById('current-operand');
+        this.previousOperandElement = document.getElementById('previous-operand');
+        this.historyPanel = document.getElementById('history-panel');
+        this.buttonsGrid = document.getElementById('buttons-grid');
+
+        this.initializeEventListeners();
+        this.updateDisplay();
+        this.updateScientificMode();
+      }
+
+      initializeEventListeners() {
+        this.historyPanel.addEventListener('click', (event) => this.handleHistoryClick(event));
+        document.addEventListener('contextmenu', (event) => event.preventDefault());
+        this.buttonsGrid.querySelectorAll('.button').forEach(button => {
+          button.addEventListener('touchstart', (event) => {
+            event.preventDefault();
+            button.click();
+          });
+        });
+      }
+
+      
+
+      updateDisplay() {
+        this.currentOperandElement.textContent = this.formatNumber(this.currentOperand) || '0';
+        this.previousOperandElement.textContent = this.previousOperand || '';
+        this.currentOperandElement.classList.toggle('error', this.currentOperand.includes('Error'));
+      }
+
+      formatNumber(number) {
+        if (typeof number === 'string' && number.includes('Error')) return number;
+        const num = parseFloat(number);
+        if (isNaN(num)) return number;
+        return num.toLocaleString('en-US', { maximumFractionDigits: 8 });
+      }
+
+      appendNumber(number) {
+        if (this.currentOperand.includes('Error')) return;
+        this.animateButton(event?.target);
+        if (this.currentOperand === '0' || this.shouldResetScreen) {
+          this.currentOperand = number.toString();
+          this.shouldResetScreen = false;
+        } else {
+          this.currentOperand += number.toString();
+        }
+        this.updateDisplay();
+      }
+
+      appendOperation(op) {
+        if (this.currentOperand.includes('Error')) return;
+        this.animateButton(event?.target);
+
+        // If there was a pending op and user continues chaining, compute first
+        if (this.operation && !this.shouldResetScreen) this.calculate();
+
+        // Cache numeric value separately for accurate math (avoids parsing formatted text)
+        this.previousValue = parseFloat(this.currentOperand);
+        this.previousOperand = `${this.formatNumber(this.currentOperand)} ${op}`;
+        this.operation = op;
+        this.shouldResetScreen = true;
+        this.updateDisplay();
+      }
+
+      calculate() {
+        if (this.currentOperand.includes('Error')) return;
+        if (!this.operation) return; // nothing to do
+        this.animateButton(event?.target);
+
+        const prev = typeof this.previousValue === 'number' ? this.previousValue : null;
+        const current = parseFloat(this.currentOperand);
+
+        if (isNaN(prev) || isNaN(current)) {
+          this.setError('Invalid Input');
+          return;
+        }
+
+        let computation;
+        switch (this.operation) {
+          case '+': computation = prev + current; break;
+          case '-': computation = prev - current; break;
+          case '*': computation = prev * current; break;
+          case '/':
+            if (current === 0) {
+              this.setError('Division by Zero');
+              return;
+            }
+            computation = prev / current;
+            break;
+          case '%': computation = (prev * current) / 100; break;
+          default: return;
+        }
+
+        const result = this.roundResult(computation);
+        this.history.push(`${this.previousOperand} ${this.formatNumber(this.currentOperand)} = ${this.formatNumber(result)}`);
+        this.updateHistory();
+
+        this.currentOperand = result.toString();
+        this.operation = null;
+        this.previousOperand = '';
+        this.previousValue = null;
+        this.shouldResetScreen = true;
+        this.updateDisplay();
+      }
+
+      roundResult(num) {
+        return Math.round(num * 1_000_000) / 1_000_000;
+      }
+
+      setError(message = 'Error') {
+        this.currentOperand = message;
+        this.previousOperand = '';
+        this.previousValue = null;
+        this.operation = null;
+        this.updateDisplay();
+        setTimeout(() => {
+          this.currentOperand = '0';
+          this.shouldResetScreen = false;
+          this.updateDisplay();
+        }, 1500);
+      }
+
+      clearAll() {
+        this.animateButton(event?.target);
+        this.currentOperand = '0';
+        this.previousOperand = '';
+        this.previousValue = null;
+        this.operation = null;
+        this.shouldResetScreen = false;
+        this.updateDisplay();
+      }
+
+      clearEntry() {
+        this.animateButton(event?.target);
+        this.currentOperand = '0';
+        this.updateDisplay();
+      }
+
+      appendDecimal() {
+        if (this.currentOperand.includes('Error')) return;
+        this.animateButton(event?.target);
+        if (this.shouldResetScreen) {
+          this.currentOperand = '0.';
+          this.shouldResetScreen = false;
+        } else if (!this.currentOperand.includes('.')) {
+          this.currentOperand += '.';
+        }
+        this.updateDisplay();
+      }
+
+      toggleSign() {
+        if (this.currentOperand.includes('Error')) return;
+        this.animateButton(event?.target);
+        if (this.currentOperand !== '0') {
+          this.currentOperand = (parseFloat(this.currentOperand) * -1).toString();
+          this.updateDisplay();
+        }
+      }
+
+      square() {
+        if (this.currentOperand.includes('Error')) return;
+        this.animateButton(event?.target);
+        const num = parseFloat(this.currentOperand);
+        const result = this.roundResult(num * num);
+        this.history.push(`${this.formatNumber(num)}² = ${this.formatNumber(result)}`);
+        this.updateHistory();
+        this.currentOperand = result.toString();
+        this.updateDisplay();
+      }
+
+      squareRoot() {
+        if (this.currentOperand.includes('Error')) return;
+        this.animateButton(event?.target);
+        const num = parseFloat(this.currentOperand);
+        if (num < 0) {
+          this.setError('Invalid Input');
+          return;
+        }
+        const result = this.roundResult(Math.sqrt(num));
+        this.history.push(`√${this.formatNumber(num)} = ${this.formatNumber(result)}`);
+        this.updateHistory();
+        this.currentOperand = result.toString();
+        this.updateDisplay();
+      }
+
+      reciprocal() {
+        if (this.currentOperand.includes('Error')) return;
+        this.animateButton(event?.target);
+        const num = parseFloat(this.currentOperand);
+        if (num === 0) {
+          this.setError('Division by Zero');
+          return;
+        }
+        const result = this.roundResult(1 / num);
+        this.history.push(`1/${this.formatNumber(num)} = ${this.formatNumber(result)}`);
+        this.updateHistory();
+        this.currentOperand = result.toString();
+        this.updateDisplay();
+      }
+
+    // Toggle history panel
+ toggleHistory() {
+  let panel = document.getElementById("history-panel");
+  if (panel.style.display === "none" || panel.style.display === "") {
+    panel.style.display = "block";
+  } else {
+    panel.style.display = "none";
+  }
+}
+
+// Add new entry to history
+addToHistory(expression, result) {
+  let historyList = document.getElementById("history-list");
+  let entry = document.createElement("div");
+  entry.textContent = expression + " = " + result;
+  historyList.appendChild(entry);
+}
+
+
+       updateHistory() {
+        this.historyPanel.innerHTML = this.history.slice(-5).reverse().map(h => `<div>${h}</div>`).join('');
+      }
+    
+
+    
+
+      trigFunction(func) {
+        if (this.currentOperand.includes('Error')) return;
+        this.animateButton(event?.target);
+        const num = parseFloat(this.currentOperand);
+        const angle = this.angleMode === 'deg' ? (num * Math.PI / 180) : num;
+        let result;
+        switch (func) {
+          case 'sin': result = Math.sin(angle); break;
+          case 'cos': result = Math.cos(angle); break;
+          case 'tan':
+            result = Math.tan(angle);
+            if (Math.abs(result) > 1e10) {
+              this.setError('Undefined');
+              return;
+            }
+            break;
+          default: return;
+        }
+        result = this.roundResult(result);
+        this.history.push(`${func}(${this.formatNumber(num)} ${this.angleMode}) = ${this.formatNumber(result)}`);
+        this.updateHistory();
+        this.currentOperand = result.toString();
+        this.updateDisplay();
+      }
+
+
+      updateHistory() {
+        this.historyPanel.innerHTML = this.history
+          .slice(-5)
+          .reverse()
+          .map(item => `<div class="history-item">${item}</div>`)
+          .join('');
+      }
+
+      updateScientificMode() {
+        const scientificButtons = this.buttonsGrid.querySelectorAll('.scientific');
+        scientificButtons.forEach(button => {
+          button.style.display = this.isScientificMode ? 'block' : 'none';
+        });
+        this.buttonsGrid.style.gridTemplateColumns = this.isScientificMode ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)';
+        const equalsButton = this.buttonsGrid.querySelector('.equals');
+        equalsButton.style.gridColumn = this.isScientificMode ? 'span 2' : 'span 2'; // keep wide
+      }
+
+      toggleScientificMode() {
+        this.isScientificMode = !this.isScientificMode;
+        this.updateScientificMode();
+        this.animateButton(event?.target);
+      }
+
+      toggleAngleMode() {
+        this.animateButton(event?.target);
+        this.angleMode = this.angleMode === 'deg' ? 'rad' : 'deg';
+        const angleButton = this.buttonsGrid.querySelector('.scientific[onclick*="toggleAngleMode"]');
+        if (angleButton) angleButton.textContent = this.angleMode.toUpperCase();
+      }
+
+      animateButton(button) {
+        if (!button) return;
+        button.classList.add('button-press');
+        setTimeout(() => button.classList.remove('button-press'), 100);
+      }
+
+      handleHistoryClick(event) {
+        if (event.target.classList.contains('history-item')) {
+          const result = event.target.textContent.split('=')[1]?.trim();
+          if (result) {
+            this.currentOperand = parseFloat(result.replace(/,/g, '')).toString();
+            this.updateDisplay();
+            this.historyPanel.classList.remove('show');
+          }
+        }
+      }
+    }
+
+    // Initialize calculator
+    const calculator = new Calculator();
+  </script>
+</body>
+</html>
